@@ -21,6 +21,9 @@
 #define TIPO_ENTREGA_TESTIGO 2
 #define NUM_NODOS 2
 
+#define S_SLEEP 2
+#define NS_SLEEP 0 //1000000000ns = 1s
+
 
 void inicializarNodo();
 void *escritor();
@@ -34,6 +37,8 @@ int nodo_Prioritario();
 void primerLector();
 void ultimoLector();
 void log_print(int id_proceso,char *evento);
+
+sem_t acceso_log;
 
 sem_t papel; //semaforo que comparten tanto lectores como escritores y en el se suspenden para esperar a que acabe el otro
 sem_t paso_lectores; //semaforo de paso de lectores
@@ -95,4 +100,5 @@ struct info_cola {
 //VARIABLES FIJAS. Se inicializan una vez y no se vuelven a editar. No necesitan Semaforos,
 int idBuzonIntranodo; //ID del buzon del nodo especifico para mensajes internos (se crea en base a su id)
 int id_nodo; //id del nodo
+int num_nodos;
 //////////////////////////////////////////////////////////////////////////////////////////
