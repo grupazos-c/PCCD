@@ -1,9 +1,9 @@
 NUM_NODOS=$1
 
-make
-
 ipcrm --all=msg
 sed -i -e "s/\(NUM_NODOS \).*/\1$1/" nodo.h
+
+make
 
 for(( i=0; i <$1; i++))
 do
