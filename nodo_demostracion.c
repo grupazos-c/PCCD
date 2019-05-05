@@ -265,7 +265,7 @@ void *lector() {
 
 		sem_wait(&paso_lectores); //espero a que el lector que va delante mia me abra el semaforo
 		sem_wait(&acceso_hilo_escritor);
-		if (hilo_escritor == 1) {
+		if (hilo_escritor == 1 || nodo_Prioritario() != id_nodo) {
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
 			printf("\nNodo %i (Lector): Me convierto en primer lector\n", id_nodo);
@@ -328,7 +328,7 @@ void *lector() {
 		//se cierran aqui acceso_lectores y acceso_leyendo
 
 		sem_wait(&acceso_hilo_escritor);
-		if (hilo_escritor == 1 /*|| nodo_Prioritario() != id_nodo*/) { //TODO Tienen que comprobar tambien en las peticiones recibidas
+		if (hilo_escritor == 1 || nodo_Prioritario() != id_nodo) { //TODO Tienen que comprobar tambien en las peticiones recibidas
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
 			primerLector();
