@@ -4,9 +4,24 @@ CC = gcc
 #  -Wall turns on most, but not all, compiler warnings
 CFLAGS  = -Wall
 
-all:
-	$(CC) $(CFLAGS) -o nodo_d nodo_demostracion.c -lpthread
+JC = javac
+JFLAGS = -cp "./lib/*"
+.SUFIXES: .java .class
+.java.class:
+	$(JC) $(JFLAGS) Graficas/$*.java
+
+CLASSES= Proceso.java Valores.java Graficas.java LogParser.java
+
+ALL= cfiles jfiles
+
+all: $(ALL)
+
+cfiles:
+	$(CC) $(CFLAGS) -o nodo nodo.c -lpthread
 	$(CC) $(CFLAGS) -o cliente cliente.c
 
+jfiles:
+	$(CLASSES:.java=.class)
+
 clean:
-	$(RM) $(TARGET)
+	$(RM) nodo cliente *.class
