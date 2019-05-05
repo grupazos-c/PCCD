@@ -12,9 +12,6 @@ int leyendo = 0;  //numero de lectores en seccion critica
 int identificador_ejecucion = 0;
 char* log_dir;
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
 FILE *fp;
 static int SESSION_TRACKER = 0;
 char stlog[50];
