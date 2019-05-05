@@ -299,7 +299,7 @@ void *lector() {
 		 ****************************/
 
 		sem_wait(&acceso_leyendo);
-//******************************************************************************************************************//
+
 //		atendidas[id_nodo] = mi_peticion;
 		leyendo--;
 //		peticiones[id_nodo].id_peticion = ++mi_peticion;
@@ -312,8 +312,6 @@ void *lector() {
 
 	/*LECTOR QUE "PUEDE" ENTRAR*/
 	} else if (leyendo > 0) { //puedo entrar SOLO si no hay escritores esperanod, en cuyo caso me transformaré en un lecotr primero
-
-		printf("\nMe quedo en el tercer if");
 
 		sem_post(&acceso_leyendo);
 		lectores++;
@@ -665,23 +663,29 @@ void *gestionReceptor() {
 
 /**
  * Función que devuelve el nodo más prioritario para la siguiente ejecución
- */
+ *
 int nodo_Prioritario() {
 	int nodo_prio = id_nodo;
 	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 0 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[0].id_peticion, peticiones[0].prioridad, atendidas[0]);
 	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
 	for (int i = 0; i < NUM_NODOS; ++i) {
+		//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, entramos en comparacion de peticion y atendidas"ANSI_COLOR_RESET, id_nodo, i);
 		if (peticiones[i].id_peticion > atendidas[i]) {
+			//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion > atendidas"ANSI_COLOR_RESET, id_nodo, i);
 			if (peticiones[i].prioridad == peticiones[nodo_prio].prioridad) {
+				//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, peticion_prioridad = nodo%i.prioridad"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
 				if (peticiones[i].id_peticion < peticiones[nodo_prio].id_peticion) {
+					//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion < nodo%i.id_peticion"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
 					nodo_prio = i;
-				} else if (peticiones[i].id_peticion
-						== peticiones[nodo_prio].id_peticion) {
+				} else if (peticiones[i].id_peticion == peticiones[nodo_prio].id_peticion) {
+					//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion = nodo%i.id_peticion"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
 					if (i <= nodo_prio) { //Es mejor que cause inanicon en un nodo o pasandose el testigo ?? TODO
+						//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_nodo <= nodo%i.id_nodo"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
 						nodo_prio = i;
 					}
 				}
 			} else if (peticiones[i].prioridad < peticiones[nodo_prio].prioridad) {
+				printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, peticion_prioridad < nodo%i.prioridad"ANSI_COLOR_RESET, i, id_nodo, nodo_prio);
 				nodo_prio = i;
 			}
 		}
@@ -689,6 +693,68 @@ int nodo_Prioritario() {
 	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): Se ha decidido el nodo %i como prioritario"ANSI_COLOR_RESET"\n", id_nodo, nodo_prio);
 	return nodo_prio;
 }
+*/
+
+int nodo_Prioritario() {
+
+	int nodo_prio = id_nodo;
+	int factibles[NUM_NODOS];
+
+	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 0 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[0].id_peticion, peticiones[0].prioridad, atendidas[0]);
+	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
+
+	for (int i = 0; i < NUM_NODOS; ++i) {
+
+		if (peticiones[i].id_peticion > atendidas[i]) {
+
+			factibles[i] = 1;
+
+		} else {
+
+			factibles[i] = 0;
+
+		}
+
+	}
+
+	if (factibles[id_nodo] == 0) {
+		for (int i=0; i<NUM_NODOS; i++) {
+			if (factibles[i] == 1) {
+				nodo_prio = i;
+				break;
+			}
+		}
+	}
+
+	for (int i=0; i<NUM_NODOS; i++) {
+		if (factibles[i] == 1) {
+
+			if (peticiones[i].prioridad == peticiones[nodo_prio].prioridad) {
+
+				if (peticiones[i].id_peticion < peticiones[nodo_prio].id_peticion) {
+
+					nodo_prio = i;
+
+				} else if (peticiones[i].id_peticion
+						== peticiones[nodo_prio].id_peticion) {
+
+					if (i <= nodo_prio) { //Es mejor que cause inanicon en un nodo o pasandose el testigo ?? TODO
+
+						nodo_prio = i;
+					}
+				}
+			} else if (peticiones[i].prioridad < peticiones[nodo_prio].prioridad) {
+
+				nodo_prio = i;
+
+			}
+
+		}
+	}
+
+	return nodo_prio;
+}
+
 
 void send_token(int id_destino) {
 	sem_wait(&acceso_TESTIGO);
