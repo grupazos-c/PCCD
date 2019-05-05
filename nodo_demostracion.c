@@ -1,7 +1,6 @@
 #include "nodo.h"
 
 int TESTIGO = 0; //0 si no lo tiene 1 si sí
-int dentro = 0;
 int buzon[NUM_NODOS]; //id del buzon
 struct peticion peticiones[NUM_NODOS] = { { 0 } }; //Vector de peticiones recibidas
 int atendidas[NUM_NODOS] = { 0 }; //Vector de peticiones atendidas (se actualizada la recibir el testigo)
@@ -18,12 +17,10 @@ char* log_dir;
 
 /*
  * SEMAFOROS EN:
-dentro = 0;
 peticion peticiones[NUM_NODOS]
 atendidas[NUM_NODOS] = { 0 };
 mi_peticion = 1;
 peticion_maxima = 0;
-identificador_ejecucion = 0;
 */
 
 FILE *fp;
@@ -83,8 +80,10 @@ int main(int argc, char *argv[]) {
 
 	struct MensajeIntranodo proceso;
 
+	sem_wait(&acceso_peticiones);
 	peticiones[id_nodo].id_peticion = mi_peticion;
 	peticiones[id_nodo].prioridad = 5;
+	sem_post(&acceso_log);
 
 	do {
 
@@ -397,8 +396,11 @@ void primerLector() {
 
 	//Solo actualizamos esto si es el primer lector, pero independientemente de que tenga o no el testigo :p
 	mi_peticion = ++peticion_maxima;
+
+	sem_wait(&acceso_peticiones);
 	peticiones[id_nodo].id_peticion = mi_peticion;
 	peticiones[id_nodo].prioridad = 4;
+	sem_post(&acceso_peticiones);
 
 	sem_wait(&acceso_TESTIGO);
 
@@ -424,11 +426,15 @@ void primerLector() {
 		msgrcv(buzon[id_nodo], &testigomsg, sizeof(testigomsg) - sizeof(long),
 				1, 0);
 		for (int i = 0; i < NUM_NODOS; i++) {
-			if (testigomsg.mtext.atendidas[i] > atendidas[i])
+			sem_wait(&acceso_atendidas);
+			if (testigomsg.mtext.atendidas[i] > atendidas[i]){
+				sem_post(&acceso_atendidas);
 				atendidas[i] = testigomsg.mtext.atendidas[i];
+			} else {
+				sem_post(&acceso_atendidas);
+			}
 		}
 		printf("\nNodo %i (Lector): Testigo recibido\n", id_nodo);
-		//dentro = 1; 	//TODO diferenciar dentro de leyendo en receptor, podemos cargarnos uno de los dos seguro
 
 		sem_wait(&acceso_TESTIGO);
 		TESTIGO = 1;
@@ -445,7 +451,6 @@ void primerLector() {
 		sem_post(&acceso_TESTIGO);
 
 		//parece que se ejecutaría sin problema, no??
-		//dentro = 1; 	//TODO lo mismo que arriba
 
 		sem_wait(&acceso_lectores);
 		sem_wait(&acceso_leyendo);
@@ -462,7 +467,9 @@ void ultimoLector() {
 
 	printf("\n\tNodo %i (UltimoLector): Soy el ultimo lector\n", id_nodo);
 
+	sem_wait(&acceso_atendidas);
 	atendidas[id_nodo] = mi_peticion;
+	sem_post(&acceso_atendidas);
 //	peticiones[id_nodo].id_peticion = ++mi_peticion;
 
 	int id_nodo_sig = nodo_Prioritario();
@@ -515,8 +522,11 @@ void *escritor() {
 		//while (getchar() != '\n');
 
 		mi_peticion = ++peticion_maxima;
+
+		sem_wait(&acceso_peticiones);
 		peticiones[id_nodo].id_peticion = mi_peticion;
 		peticiones[id_nodo].prioridad = tipoproceso;
+		sem_post(&acceso_peticiones);
 
 		sem_wait(&acceso_TESTIGO);
 		if (TESTIGO == 0) {
@@ -542,11 +552,13 @@ void *escritor() {
 			msgrcv(buzon[id_nodo], &testigomsg,
 					sizeof(testigomsg) - sizeof(long), 1, 0);
 			for (int i = 0; i < NUM_NODOS; i++) {
-				if (testigomsg.mtext.atendidas[i] > atendidas[i])
+				sem_wait(&acceso_atendidas);
+				if (testigomsg.mtext.atendidas[i] > atendidas[i]){
 					atendidas[i] = testigomsg.mtext.atendidas[i];
+				}
+				sem_post(&acceso_atendidas);
 			}
 			printf("\nNodo %i (Escritor): Testigo recibido\n", id_nodo);
-			//dentro = 1; TODO aún necesitamos dentro, no teemos otra forma de saber si un hilo está ejecutando un proceso o solo etá de paseo
 
 			sem_wait(&acceso_TESTIGO);
 			TESTIGO = 1;
@@ -554,9 +566,10 @@ void *escritor() {
 
 		} else {
 			sem_post(&acceso_TESTIGO);
-			//dentro = 1;
 		}
 
+
+		sem_wait(&acceso_peticiones);
 		if (procesos_cola.anulaciones > 0) { //TODO No capto la idea...?¿?¿
 			peticiones[id_nodo].prioridad = 1;
 		} else if (procesos_cola.pagos > 0) {
@@ -566,6 +579,7 @@ void *escritor() {
 		} else {
 			peticiones[id_nodo].prioridad = 5;
 		}
+		sem_post(&acceso_peticiones);
 
 		/****************************
 		 * 	Sección crítica			*
@@ -582,10 +596,13 @@ void *escritor() {
 		 * 	Sección crítica			*
 		 ****************************/
 
+		sem_wait(&acceso_atendidas);
 		atendidas[id_nodo] = mi_peticion;
-		//dentro = 0;
+		sem_post(&acceso_atendidas);
 
+		sem_wait(&acceso_peticiones);
 		peticiones[id_nodo].id_peticion = ++mi_peticion;
+		sem_post(&acceso_peticiones);
 
 		int id_nodo_sig = nodo_Prioritario();
 		if (id_nodo_sig != id_nodo) {
@@ -626,8 +643,11 @@ void *gestionReceptor() {
 
 		// Compruebo el id de la petición por si es una que está desactualizada y ya ha sido atendida. Las atendidas lo miro en el testigo.
 		printf("\nNodo %i (Receptor): id_peticion_origen = %i, atendidas_origen %i\n", id_nodo, id_peticion_origen, atendidas[origen]);
+		sem_wait(&acceso_atendidas);
 		if (id_peticion_origen > atendidas[origen]) {
+			sem_wait(&acceso_peticiones);
 			if (prio_peticion_origen < peticiones[origen].prioridad	|| peticiones[origen].id_peticion <= atendidas[origen]) {
+				sem_post(&acceso_atendidas);
 				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
 						id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
@@ -635,21 +655,25 @@ void *gestionReceptor() {
 				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
 				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
 			} else if(prio_peticion_origen == peticiones[origen].prioridad && id_peticion_origen > peticiones[origen].id_peticion){
+				sem_post(&acceso_atendidas);
 				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
 						id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
 				peticiones[origen].prioridad = prio_peticion_origen;
 				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
 				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
+			}else {
+				sem_post(&acceso_atendidas);
 			}
+			sem_post(&acceso_peticiones);
 		} else { // La petición ya ha sido atendida.
+			sem_post(&acceso_atendidas);
 			return NULL;
 		}
 
 		//Esto envia el token sólo cuando el escritor se ha dormido y no ha pasado el testigo TODO
 		sem_wait(&acceso_hilo_escritor);
 		sem_wait(&acceso_TESTIGO);
-		// Voy a probar con la variable leyendo en lugar de dentro.
 		sem_wait(&acceso_leyendo);
 		if ((TESTIGO == 1) && (leyendo == 0) && (hilo_escritor == 0)) {
 			sem_post(&acceso_leyendo);
@@ -715,17 +739,17 @@ int nodo_Prioritario() {
 	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
 
 	for (int i = 0; i < NUM_NODOS; ++i) {
-
+		sem_wait(&acceso_peticiones);
+		sem_wait(&acceso_atendidas);
 		if (peticiones[i].id_peticion > atendidas[i]) {
-
+			sem_post(&acceso_peticiones);
+			sem_post(&acceso_atendidas);
 			factibles[i] = 1;
-
 		} else {
-
+			sem_post(&acceso_peticiones);
+			sem_post(&acceso_atendidas);
 			factibles[i] = 0;
-
 		}
-
 	}
 
 	if (factibles[id_nodo] == 0) {
@@ -740,26 +764,25 @@ int nodo_Prioritario() {
 	for (int i=0; i<NUM_NODOS; i++) {
 		if (factibles[i] == 1) {
 
+			sem_wait(&acceso_peticiones);
 			if (peticiones[i].prioridad == peticiones[nodo_prio].prioridad) {
-
 				if (peticiones[i].id_peticion < peticiones[nodo_prio].id_peticion) {
-
+					sem_post(&acceso_peticiones);
 					nodo_prio = i;
-
-				} else if (peticiones[i].id_peticion
-						== peticiones[nodo_prio].id_peticion) {
-
-					if (i <= nodo_prio) { //Es mejor que cause inanicon en un nodo o pasandose el testigo ?? TODO
-
+				} else if (peticiones[i].id_peticion == peticiones[nodo_prio].id_peticion) {
+					sem_post(&acceso_peticiones);
+					if (i <= nodo_prio) {
 						nodo_prio = i;
 					}
+				} else {
+					sem_post(&acceso_peticiones);
 				}
 			} else if (peticiones[i].prioridad < peticiones[nodo_prio].prioridad) {
-
+				sem_post(&acceso_peticiones);
 				nodo_prio = i;
-
+			} else {
+				sem_post(&acceso_peticiones);
 			}
-
 		}
 	}
 
@@ -775,7 +798,9 @@ void send_token(int id_destino) {
 	struct testigo_msgbuf testigomsg;
 	testigomsg.mtype = 1;
 	for (int i = 0; i < NUM_NODOS; i++) {
+		sem_wait(&acceso_atendidas);
 		testigomsg.mtext.atendidas[i] = atendidas[i];
+		sem_post(&acceso_atendidas);
 	}
 
 	printf("Nodo %i (Token senderator): Enviando el testigo al nodo %i\n",
@@ -809,6 +834,10 @@ void inicializarNodo(char* log_dir) {
 		sem_init(&acceso_TESTIGO, 0, 1);
 		sem_init(&acceso_id_ejecucion, 0, 1);
 		sem_init(&acceso_log, 0, 1);
+		sem_init(&acceso_peticiones, 0, 1);
+		sem_init(&acceso_mi_peticion, 0, 1);
+		sem_init(&acceso_peticion_maxima, 0, 1);
+		sem_init(&acceso_atendidas, 0, 1);
 
 		//Acordarmos darle el testigo al primer nodo
 		sem_wait(&acceso_TESTIGO);
