@@ -563,7 +563,6 @@ void *escritor() {
 
 		int id_nodo_sig = nodo_Prioritario();
 		if (id_nodo_sig != id_nodo) {
-					atendidas[id_nodo_sig]);
 			send_token(id_nodo_sig);
 		}
 
