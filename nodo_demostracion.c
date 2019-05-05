@@ -11,6 +11,20 @@ int hilo_escritor = 0;
 int lectores = 0; //numero de lectores esperando
 int leyendo = 0;  //numero de lectores en seccion critica
 int identificador_ejecucion = 0;
+char* log_dir;
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+/*
+ * SEMAFOROS EN:
+dentro = 0;
+peticion peticiones[NUM_NODOS]
+atendidas[NUM_NODOS] = { 0 };
+mi_peticion = 1;
+peticion_maxima = 0;
+identificador_ejecucion = 0;
+*/
 
 FILE *fp;
 static int SESSION_TRACKER;
@@ -19,7 +33,6 @@ char stlog[20];
 struct info_cola procesos_cola;
 
 void log_print(int id_proceso, char *evento) {
-
 
 	sem_wait(&acceso_log);
 	if (SESSION_TRACKER > 0) {
@@ -47,16 +60,17 @@ void log_print(int id_proceso, char *evento) {
  */
 int main(int argc, char *argv[]) {
 
-	if (argc != 2) {
+	if (argc != 3) {
 		printf("Numero de argumentos incorrecto.\n");
 		exit(0);
 	} else {
 		id_nodo = atoi(argv[1]);
+		log_dir = argv[2];
 	}
 
 	printf("Inicializando el nodo...\n");
 
-	inicializarNodo();
+	inicializarNodo(log_dir);
 
 	struct MensajeIntranodo proceso;
 
@@ -171,7 +185,7 @@ void initLector() {
 		perror("pthread_create");
 		exit(0);
 	} else {
-//		printf("Nodo %i (Main): Hilo de gestión de lector iniciado correctamente.\n", id_nodo);
+		printf("Nodo %i (Main): Hilo de gestión de lector iniciado correctamente.\n", id_nodo);
 	}
 }
 
@@ -211,7 +225,7 @@ void *lector() {
 		 * 	Sección crítica			*
 		 ****************************/
 		log_print(mi_identificador, "entradaSC");
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica\n", id_nodo);
+		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @como primer lector@\n", id_nodo);
 
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
@@ -219,8 +233,7 @@ void *lector() {
 		nanosleep(&tim, &tim2);
 
 		log_print(mi_identificador, "salidaSC");
-		printf("\nNodo %i (Lector): He salido de la seccion critica\n",
-				id_nodo);
+		printf("\nNodo %i (Lector): He salido de la seccion critica\n", id_nodo);
 		/****************************
 		 *  FIN	Sección crítica		*
 		 ****************************/
@@ -249,7 +262,7 @@ void *lector() {
 		if (hilo_escritor == 1) {
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
-			printf("\nMe convierto en el primer lector gg");
+			printf("\nNodo %i (Lector): Me convierto en primer lector\n", id_nodo);
 			primerLector();
 
 		} else {
@@ -275,7 +288,7 @@ void *lector() {
 		 ****************************/
 		log_print(mi_identificador, "entradaSC");
 
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica\n", id_nodo);
+		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @despues de esperar en cola@\n", id_nodo);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
@@ -310,7 +323,7 @@ void *lector() {
 		//se cierran aqui acceso_lectores y acceso_leyendo
 
 		sem_wait(&acceso_hilo_escritor);
-		if (hilo_escritor == 1) {
+		if (hilo_escritor == 1 || nodo_Prioritario() != id_nodo) { //TODO Tienen que comprobar tambien en las peticiones recibidas
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
 			primerLector();
@@ -336,7 +349,7 @@ void *lector() {
 		 * 	Sección crítica			*
 		 ****************************/
 		log_print(mi_identificador, "entradaSC");
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica\n", id_nodo);
+		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @Porque ya habia lectores leyendo@\n", id_nodo);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
@@ -362,6 +375,7 @@ void *lector() {
 	}
 
 	log_print(mi_identificador, "stop");
+
 	return NULL;
 }
 
@@ -443,14 +457,21 @@ void primerLector() {
 
 void ultimoLector() {
 
-	sem_post(&papel);
+//	sem_post(&papel);//SAMEDIT: No se deberia comprobar al final de la funcion? Otro proceso de este nodo podria ejecutarse en cuanto este semaforo se abra
+
+	printf("\n\tNodo %i (UltimoLector): Soy el ultimo lector\n", id_nodo);
 
 	int id_nodo_sig = nodo_Prioritario();
+	printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
 	if (id_nodo_sig != id_nodo) {
 		printf("\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
 				id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion, atendidas[id_nodo_sig]);
 		send_token(id_nodo_sig);
 	}
+
+	sem_post(&papel);
+
+	return;
 
 }
 
@@ -695,8 +716,9 @@ void send_token(int id_destino) {
  * Inicializa las variables generales del nodo: ID, TESTIGO Y BUZON.
  * Crea y ejecuta los diferentes hilos de gestion del nodo.
  */
-void inicializarNodo() {
+void inicializarNodo(char* log_dir) {
 
+	strcat(stlog, log_dir);
 	strcat(stlog, "logNodo");
 	char aux[9];
 	sprintf(aux, "%d", id_nodo);
