@@ -27,19 +27,27 @@ identificador_ejecucion = 0;
 */
 
 FILE *fp;
-static int SESSION_TRACKER;
-char stlog[20];
+static int SESSION_TRACKER = 0;
+char stlog[50];
 
 struct info_cola procesos_cola;
 
-void log_print(int id_proceso, char *evento) {
+void log_print(int id_proceso, char *evento, int prioridad) {
+
+	printf("Accediendo a %s", stlog);
 
 	sem_wait(&acceso_log);
 	if (SESSION_TRACKER > 0) {
 		fp = fopen(stlog, "a+");
 	} else {
+		printf("Entrando en el archivo por primera vez");
+		struct stat st = {0};
+		if (stat(log_dir, &st) == -1) {
+		    mkdir(log_dir, 0700);
+		}
 		fp = fopen(stlog, "w");
 	}
+
 
 	struct timespec ts;
 	timespec_get(&ts, TIME_UTC);
@@ -47,6 +55,7 @@ void log_print(int id_proceso, char *evento) {
 	fprintf(fp, "%ld", time_in_nanos);
 	fprintf(fp, ":%i", id_proceso);
 	fprintf(fp, ":%s", evento);
+	fprintf(fp, ":%i", prioridad);
 
 	fputc('\n', fp);
 	SESSION_TRACKER++;
@@ -61,7 +70,7 @@ void log_print(int id_proceso, char *evento) {
 int main(int argc, char *argv[]) {
 
 	if (argc != 3) {
-		printf("Numero de argumentos incorrecto.\n");
+		printf("Numero de argumentos incorrecto.\n Uso: ./nodo [id_nodo] [dir_log]");
 		exit(0);
 	} else {
 		id_nodo = atoi(argv[1]);
@@ -196,7 +205,7 @@ void *lector() {
 	int mi_identificador = identificador_ejecucion++;
 	sem_post(&acceso_id_ejecucion);
 
-	log_print(mi_identificador, "start");
+	log_print(mi_identificador, "start", 4);
 
 	sem_wait(&acceso_lectores);
 	sem_wait(&acceso_leyendo);
@@ -221,7 +230,7 @@ void *lector() {
 		/****************************
 		 * 	Sección crítica			*
 		 ****************************/
-		log_print(mi_identificador, "entradaSC");
+		log_print(mi_identificador, "entradaSC", 4);
 		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @como primer lector@\n", id_nodo);
 
 		struct timespec tim, tim2;
@@ -229,7 +238,7 @@ void *lector() {
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
 
-		log_print(mi_identificador, "salidaSC");
+		log_print(mi_identificador, "salidaSC", 4);
 		printf("\nNodo %i (Lector): He salido de la seccion critica\n", id_nodo);
 		/****************************
 		 *  FIN	Sección crítica		*
@@ -283,7 +292,7 @@ void *lector() {
 		/****************************
 		 * 	Sección crítica			*
 		 ****************************/
-		log_print(mi_identificador, "entradaSC");
+		log_print(mi_identificador, "entradaSC", 4);
 
 		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @despues de esperar en cola@\n", id_nodo);
 		struct timespec tim, tim2;
@@ -292,7 +301,7 @@ void *lector() {
 		nanosleep(&tim, &tim2);
 		printf("\nNodo %i (Lector): He salido de la seccion critica\n",
 				id_nodo);
-		log_print(mi_identificador, "salidaSC");
+		log_print(mi_identificador, "salidaSC", 4);
 
 		/****************************
 		 *  FIN	Sección crítica		*
@@ -344,14 +353,14 @@ void *lector() {
 		/****************************
 		 * 	Sección crítica			*
 		 ****************************/
-		log_print(mi_identificador, "entradaSC");
+		log_print(mi_identificador, "entradaSC", 4);
 		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @Porque ya habia lectores leyendo@\n", id_nodo);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
 		printf("Nodo %i (Lector): He salido de la seccion critica\n", id_nodo);
-		log_print(mi_identificador, "salidaSC");
+		log_print(mi_identificador, "salidaSC", 4);
 
 		/****************************
 		 *  FIN	Sección crítica		*
@@ -370,7 +379,7 @@ void *lector() {
 
 	}
 
-	log_print(mi_identificador, "stop");
+	log_print(mi_identificador, "stop", 4);
 
 	return NULL;
 }
@@ -385,10 +394,6 @@ void primerLector() {
 
 	//Tenemos que pedir el testigo (si no lo tneemos), a partir de aquí entendemos que el proceso lector está "en ejecución": aun que
 	//no este en su seccion critica, ningun proceso escritor va a poder pararlo ahora, pero si pueden parar al resto de lectores que esperan
-
-	//printf("\nNodo %i (Lector): Soy el primer lector. Pulse enter para intentar entrar en seccion critica\n", id_nodo);
-	//while (getchar() != '\n');
-	sleep(2);
 
 	//Solo actualizamos esto si es el primer lector, pero independientemente de que tenga o no el testigo :p
 	mi_peticion = ++peticion_maxima;
@@ -489,8 +494,6 @@ void *escritor() {
 		int mi_identificador = identificador_ejecucion++;
 		sem_post(&acceso_id_ejecucion);
 
-		log_print(mi_identificador, "start");
-
 		if (procesos_cola.anulaciones > 0) {
 			tipoproceso = 1;
 			procesos_cola.anulaciones--;
@@ -501,6 +504,8 @@ void *escritor() {
 			tipoproceso = 3;
 			procesos_cola.prereservas--;
 		}
+
+		log_print(mi_identificador, "start", tipoproceso);
 
 		//printf("\nNodo %i (Escritor): Se ha detectado un proceso de tipo %i\n", id_nodo, tipoproceso);
 
@@ -565,14 +570,14 @@ void *escritor() {
 		/****************************
 		 * 	Sección crítica			*
 		 ****************************/
-		log_print(mi_identificador, "entradaSC");
+		log_print(mi_identificador, "entradaSC", tipoproceso);
 		printf("\nNodo %i (Escritor): Estoy en mi Sección crítica con un proceso de tipo %i\n", id_nodo, tipoproceso);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
 		printf("\nNodo %i (Escritor): He salido de la seccion critica\n", id_nodo);
-		log_print(mi_identificador, "salidaSC");
+		log_print(mi_identificador, "salidaSC", tipoproceso);
 		/****************************
 		 * 	Sección crítica			*
 		 ****************************/
@@ -591,7 +596,7 @@ void *escritor() {
 			send_token(id_nodo_sig);
 		}
 
-		log_print(mi_identificador, "stop");
+		log_print(mi_identificador, "stop", tipoproceso);
 
 	} while (procesos_cola.anulaciones != 0 || procesos_cola.pagos != 0
 			|| procesos_cola.prereservas != 0);
@@ -622,8 +627,14 @@ void *gestionReceptor() {
 		// Compruebo el id de la petición por si es una que está desactualizada y ya ha sido atendida. Las atendidas lo miro en el testigo.
 		printf("\nNodo %i (Receptor): id_peticion_origen = %i, atendidas_origen %i\n", id_nodo, id_peticion_origen, atendidas[origen]);
 		if (id_peticion_origen > atendidas[origen]) {
-			if (prio_peticion_origen < peticiones[origen].prioridad
-					|| peticiones[origen].id_peticion <= atendidas[origen]) {
+			if (prio_peticion_origen < peticiones[origen].prioridad	|| peticiones[origen].id_peticion <= atendidas[origen]) {
+				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
+						id_nodo, origen, id_peticion_origen);
+				peticiones[origen].id_peticion = id_peticion_origen;
+				peticiones[origen].prioridad = prio_peticion_origen;
+				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
+				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
+			} else if(prio_peticion_origen == peticiones[origen].prioridad && id_peticion_origen > peticiones[origen].id_peticion){
 				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
 						id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
@@ -782,6 +793,7 @@ void send_token(int id_destino) {
 void inicializarNodo(char* log_dir) {
 
 	strcat(stlog, log_dir);
+//	strcat(stlog, "/");
 	strcat(stlog, "logNodo");
 	char aux[9];
 	sprintf(aux, "%d", id_nodo);

@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/stat.h> //Para crear el directorio
+
 //PRIORIDADES///////////////
 #define ANULACION 1
 #define PAGO 2
@@ -19,10 +21,10 @@
 
 #define TIPO_PETICION_TESTIGO 1
 #define TIPO_ENTREGA_TESTIGO 2
-#define NUM_NODOS 2
+#define NUM_NODOS 1
 
-#define S_SLEEP 2
-#define NS_SLEEP 0 //1000000000ns = 1s
+#define S_SLEEP 0
+#define NS_SLEEP 1000000 //1000000000ns = 1s
 
 
 void inicializarNodo();
@@ -36,7 +38,7 @@ void initLector();
 int nodo_Prioritario();
 void primerLector();
 void ultimoLector();
-void log_print(int id_proceso,char *evento);
+void log_print(int id_proceso,char *evento, int prioridad);
 
 sem_t acceso_log;
 
