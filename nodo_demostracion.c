@@ -15,14 +15,6 @@ char* log_dir;
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-/*
- * SEMAFOROS EN:
-peticion peticiones[NUM_NODOS]
-atendidas[NUM_NODOS] = { 0 };
-mi_peticion = 1;
-peticion_maxima = 0;
-*/
-
 FILE *fp;
 static int SESSION_TRACKER = 0;
 char stlog[50];
@@ -81,7 +73,9 @@ int main(int argc, char *argv[]) {
 	struct MensajeIntranodo proceso;
 
 	sem_wait(&acceso_peticiones);
+	sem_wait(&acceso_mi_peticion);
 	peticiones[id_nodo].id_peticion = mi_peticion;
+	sem_post(&acceso_mi_peticion);
 	peticiones[id_nodo].prioridad = 5;
 	sem_post(&acceso_log);
 
@@ -244,10 +238,7 @@ void *lector() {
 		 ****************************/
 
 		sem_wait(&acceso_leyendo);
-//		atendidas[id_nodo] = mi_peticion; //TODO: y está, do deberíamos decir que está atendida, cuando se haya acabado: último lector??
 		leyendo--;
-
-//		peticiones[id_nodo].id_peticion = ++mi_peticion; //TODO: por que existe esta línea??
 
 		if (leyendo == 0) {
 			sem_post(&acceso_leyendo);
@@ -308,9 +299,7 @@ void *lector() {
 
 		sem_wait(&acceso_leyendo);
 
-//		atendidas[id_nodo] = mi_peticion;
 		leyendo--;
-//		peticiones[id_nodo].id_peticion = ++mi_peticion;
 
 		if (leyendo == 0) {
 			sem_post(&acceso_leyendo);
@@ -366,9 +355,7 @@ void *lector() {
 		 ****************************/
 
 		sem_wait(&acceso_leyendo);
-//		atendidas[id_nodo] = mi_peticion;
 		leyendo--;
-//		peticiones[id_nodo].id_peticion = ++mi_peticion;
 
 		if (leyendo == 0) {
 			sem_post(&acceso_leyendo);
@@ -395,10 +382,16 @@ void primerLector() {
 	//no este en su seccion critica, ningun proceso escritor va a poder pararlo ahora, pero si pueden parar al resto de lectores que esperan
 
 	//Solo actualizamos esto si es el primer lector, pero independientemente de que tenga o no el testigo :p
+	sem_wait(&acceso_mi_peticion);
+	sem_wait(&acceso_peticion_maxima);
 	mi_peticion = ++peticion_maxima;
+	sem_post(&acceso_peticion_maxima);
+	sem_post(&acceso_mi_peticion);
 
 	sem_wait(&acceso_peticiones);
+	sem_wait(&acceso_mi_peticion);
 	peticiones[id_nodo].id_peticion = mi_peticion;
+	sem_post(&acceso_mi_peticion);
 	peticiones[id_nodo].prioridad = 4;
 	sem_post(&acceso_peticiones);
 
@@ -410,7 +403,9 @@ void primerLector() {
 		printf("Nodo %i (Lector): No tengo el testigo\n", id_nodo);
 		struct request_msgbuf mensaje;
 		mensaje.mtype = 2;
+		sem_wait(&acceso_mi_peticion);
 		mensaje.mtext.id_peticion = mi_peticion;
+		sem_post(&acceso_mi_peticion);
 		mensaje.mtext.origen = id_nodo;
 		mensaje.mtext.prioridad = 4; //los receptores deberán ahora hacer algo distinto si la peticion es de tipo 4 (hacer una copia)
 
@@ -463,14 +458,14 @@ void primerLector() {
 
 void ultimoLector() {
 
-//	sem_post(&papel);//SAMEDIT: No se deberia comprobar al final de la funcion? Otro proceso de este nodo podria ejecutarse en cuanto este semaforo se abra
 
 	printf("\n\tNodo %i (UltimoLector): Soy el ultimo lector\n", id_nodo);
 
 	sem_wait(&acceso_atendidas);
+	sem_wait(&acceso_mi_peticion);
 	atendidas[id_nodo] = mi_peticion;
+	sem_post(&acceso_mi_peticion);
 	sem_post(&acceso_atendidas);
-//	peticiones[id_nodo].id_peticion = ++mi_peticion;
 
 	int id_nodo_sig = nodo_Prioritario();
 	printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
@@ -521,10 +516,16 @@ void *escritor() {
 		//printf("\nNodo %i (Escritor): Pulse enter para intentar entrar en seccion critica\n", id_nodo);
 		//while (getchar() != '\n');
 
+		sem_wait(&acceso_mi_peticion);
+		sem_wait(&acceso_peticion_maxima);
 		mi_peticion = ++peticion_maxima;
+		sem_post(&acceso_peticion_maxima);
+		sem_post(&acceso_mi_peticion);
 
 		sem_wait(&acceso_peticiones);
+		sem_wait(&acceso_mi_peticion);
 		peticiones[id_nodo].id_peticion = mi_peticion;
+		sem_post(&acceso_mi_peticion);
 		peticiones[id_nodo].prioridad = tipoproceso;
 		sem_post(&acceso_peticiones);
 
@@ -535,7 +536,9 @@ void *escritor() {
 			printf("\nNodo %i (Escritor): No tengo el testigo\n", id_nodo);
 			struct request_msgbuf mensaje;
 			mensaje.mtype = 2;
+			sem_wait(&acceso_mi_peticion);
 			mensaje.mtext.id_peticion = mi_peticion;
+			sem_post(&acceso_mi_peticion);
 			mensaje.mtext.origen = id_nodo;
 			mensaje.mtext.prioridad = tipoproceso;
 
@@ -597,11 +600,15 @@ void *escritor() {
 		 ****************************/
 
 		sem_wait(&acceso_atendidas);
+		sem_wait(&acceso_mi_peticion);
 		atendidas[id_nodo] = mi_peticion;
+		sem_post(&acceso_mi_peticion);
 		sem_post(&acceso_atendidas);
 
 		sem_wait(&acceso_peticiones);
+		sem_wait(&acceso_mi_peticion);
 		peticiones[id_nodo].id_peticion = ++mi_peticion;
+		sem_post(&acceso_mi_peticion);
 		sem_post(&acceso_peticiones);
 
 		int id_nodo_sig = nodo_Prioritario();
@@ -690,8 +697,15 @@ void *gestionReceptor() {
 			sem_post(&acceso_hilo_escritor);
 		}
 
-		if (mi_peticion < id_peticion_origen)
+		sem_wait(&acceso_mi_peticion);
+		if (mi_peticion < id_peticion_origen){
+			sem_post(&acceso_mi_peticion);
+			sem_wait(&acceso_peticion_maxima);
 			peticion_maxima = id_peticion_origen;
+			sem_post(&acceso_peticion_maxima);
+		} else {
+			sem_post(&acceso_mi_peticion);
+		}
 
 	}
 }
@@ -739,8 +753,8 @@ int nodo_Prioritario() {
 	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
 
 	for (int i = 0; i < NUM_NODOS; ++i) {
-		sem_wait(&acceso_peticiones);
 		sem_wait(&acceso_atendidas);
+		sem_wait(&acceso_peticiones);
 		if (peticiones[i].id_peticion > atendidas[i]) {
 			sem_post(&acceso_peticiones);
 			sem_post(&acceso_atendidas);
