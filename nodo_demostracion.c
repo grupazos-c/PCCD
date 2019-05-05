@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 	peticiones[id_nodo].id_peticion = mi_peticion;
 	sem_post(&acceso_mi_peticion);
 	peticiones[id_nodo].prioridad = 5;
-	sem_post(&acceso_log);
+	sem_post(&acceso_peticiones);
 
 	do {
 
@@ -508,13 +508,6 @@ void *escritor() {
 		}
 
 		log_print(mi_identificador, "start", tipoproceso);
-
-		//printf("\nNodo %i (Escritor): Se ha detectado un proceso de tipo %i\n", id_nodo, tipoproceso);
-
-		//printf("\nNodo %i (Escritor): TESTIGO: %i\n", id_nodo, TESTIGO);
-
-		//printf("\nNodo %i (Escritor): Pulse enter para intentar entrar en seccion critica\n", id_nodo);
-		//while (getchar() != '\n');
 
 		sem_wait(&acceso_mi_peticion);
 		sem_wait(&acceso_peticion_maxima);
