@@ -12,9 +12,6 @@ int leyendo = 0;  //numero de lectores en seccion critica
 int identificador_ejecucion = 0;
 char* log_dir;
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
 FILE *fp;
 static int SESSION_TRACKER = 0;
 char stlog[50];
@@ -23,13 +20,10 @@ struct info_cola procesos_cola;
 
 void log_print(int id_proceso, char *evento, int prioridad) {
 
-	printf("Accediendo a %s", stlog);
-
 	sem_wait(&acceso_log);
 	if (SESSION_TRACKER > 0) {
 		fp = fopen(stlog, "a+");
 	} else {
-		printf("Entrando en el archivo por primera vez");
 		struct stat st = {0};
 		if (stat(log_dir, &st) == -1) {
 		    mkdir(log_dir, 0700);
@@ -66,8 +60,6 @@ int main(int argc, char *argv[]) {
 		log_dir = argv[2];
 	}
 
-	printf("Inicializando el nodo...\n");
-
 	inicializarNodo(log_dir);
 
 	struct MensajeIntranodo proceso;
@@ -82,23 +74,17 @@ int main(int argc, char *argv[]) {
 	do {
 
 		// SI EN msgrcv EL ARGUMENTO TYPE ES NEGATIVO, COGERA EL PRIMERO CON EL TIPO MAS BAJO (Y MENOR QUE EL VALOR ABSOLUTO DEL ARGUMENTO TYPE DE msgrcv)
-//		printf("\nNodo %i (Main): Esperando por mensajes intranodo...\n", id_nodo);
 		if (msgrcv(idBuzonIntranodo, &proceso, sizeof(proceso) - sizeof(long),
 				-4, 0) == -1) {
 			printf("\nError en la recepción del mensaje\n");
 			perror("msgrcv");
 			exit(0);
 		}
-//		printf("\nNodo %i (Main): Se ha recogido un proceso de la cola de procesos\n", id_nodo);
 
 		int tipoproceso = proceso.mtype;
 
-//		printf("\nNodo %i (Main): Proceso de tipo %i\n", id_nodo, tipoproceso);
-
 		switch (tipoproceso) {
 		case 1:
-			printf("\nNodo %i (Main): Añadiendo proceso de tipo 1 a la cola\n",
-					id_nodo);
 			procesos_cola.anulaciones++;
 
 			sem_wait(&acceso_hilo_escritor);
@@ -110,8 +96,6 @@ int main(int argc, char *argv[]) {
 			break;
 
 		case 2:
-			printf("\nNodo %i (Main): Añadiendo proceso de tipo 2 a la cola\n",
-					id_nodo);
 			procesos_cola.pagos++;
 
 			sem_wait(&acceso_hilo_escritor);
@@ -123,8 +107,6 @@ int main(int argc, char *argv[]) {
 			break;
 
 		case 3:
-			printf("\nNodo %i (Main): Añadiendo proceso de tipo 3 a la cola\n",
-					id_nodo);
 			procesos_cola.prereservas++;
 
 			sem_wait(&acceso_hilo_escritor);
@@ -136,16 +118,11 @@ int main(int argc, char *argv[]) {
 			break;
 
 		case 4:
-			printf("\nNodo %i (Main): Añadiendo proceso de tipo 4 a la cola\n",
-					id_nodo);
 			initLector();
 			procesos_cola.consultas++;
 			break;
 
 		default:
-			printf(
-					"\nNodo %i (Main): No se puede ejecutar un proceso de tipo %i\n",
-					id_nodo, tipoproceso);
 			continue;
 		}
 
@@ -169,7 +146,6 @@ void initEscritor() {
 		sem_wait(&acceso_hilo_escritor);
 		hilo_escritor = 1;
 		sem_post(&acceso_hilo_escritor);
-		//printf("Nodo %i (Main): Hilo de gestión de escritores iniciado correctamente.\n", id_nodo);
 	}
 
 }
@@ -184,7 +160,6 @@ void initLector() {
 		perror("pthread_create");
 		exit(0);
 	} else {
-//		printf("Nodo %i (Main): Hilo de gestión de lector iniciado correctamente.\n", id_nodo);
 	}
 }
 
@@ -224,7 +199,6 @@ void *lector() {
 		 * 	Sección crítica			*
 		 ****************************/
 		log_print(mi_identificador, "entradaSC", 4);
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @como primer lector@\n", id_nodo);
 
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
@@ -232,7 +206,6 @@ void *lector() {
 		nanosleep(&tim, &tim2);
 
 		log_print(mi_identificador, "salidaSC", 4);
-		printf("\nNodo %i (Lector): He salido de la seccion critica\n", id_nodo);
 		/****************************
 		 *  FIN	Sección crítica		*
 		 ****************************/
@@ -258,7 +231,6 @@ void *lector() {
 		if (hilo_escritor == 1 || nodo_Prioritario() != id_nodo) {
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
-			printf("\nNodo %i (Lector): Me convierto en primer lector\n", id_nodo);
 			primerLector();
 
 		} else {
@@ -284,13 +256,10 @@ void *lector() {
 		 ****************************/
 		log_print(mi_identificador, "entradaSC", 4);
 
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @despues de esperar en cola@\n", id_nodo);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
-		printf("\nNodo %i (Lector): He salido de la seccion critica\n",
-				id_nodo);
 		log_print(mi_identificador, "salidaSC", 4);
 
 		/****************************
@@ -342,12 +311,10 @@ void *lector() {
 		 * 	Sección crítica			*
 		 ****************************/
 		log_print(mi_identificador, "entradaSC", 4);
-		printf("\nNodo %i (Lector): Estoy en mi Sección crítica @Porque ya habia lectores leyendo@\n", id_nodo);
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
-		printf("Nodo %i (Lector): He salido de la seccion critica\n", id_nodo);
 		log_print(mi_identificador, "salidaSC", 4);
 
 		/****************************
@@ -400,7 +367,6 @@ void primerLector() {
 	if (TESTIGO == 0) { // Soy el primer lector. No hay más escritores. Tengo que hacerme con el testigo.
 		sem_post(&acceso_TESTIGO);
 
-		printf("Nodo %i (Lector): No tengo el testigo\n", id_nodo);
 		struct request_msgbuf mensaje;
 		mensaje.mtype = 2;
 		sem_wait(&acceso_mi_peticion);
@@ -411,8 +377,6 @@ void primerLector() {
 
 		for (int i = 0; i < NUM_NODOS; ++i) {
 			if (i != id_nodo) {	//Este if es para que no se envíe una peticion a sí mismo
-				printf("Nodo %i (Lector): Enviando solicitud al nodo: %i\n",
-						id_nodo, i);
 				msgsnd(buzon[i], &mensaje, sizeof(mensaje) - sizeof(long), 0);
 			}
 		}
@@ -429,7 +393,6 @@ void primerLector() {
 				sem_post(&acceso_atendidas);
 			}
 		}
-		printf("\nNodo %i (Lector): Testigo recibido\n", id_nodo);
 
 		sem_wait(&acceso_TESTIGO);
 		TESTIGO = 1;
@@ -459,7 +422,6 @@ void primerLector() {
 void ultimoLector() {
 
 
-	printf("\n\tNodo %i (UltimoLector): Soy el ultimo lector\n", id_nodo);
 
 	sem_wait(&acceso_atendidas);
 	sem_wait(&acceso_mi_peticion);
@@ -468,10 +430,7 @@ void ultimoLector() {
 	sem_post(&acceso_atendidas);
 
 	int id_nodo_sig = nodo_Prioritario();
-	printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
 	if (id_nodo_sig != id_nodo) {
-		printf("\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
-				id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion, atendidas[id_nodo_sig]);
 		send_token(id_nodo_sig);
 	}
 
@@ -526,7 +485,6 @@ void *escritor() {
 		if (TESTIGO == 0) {
 			sem_post(&acceso_TESTIGO);
 
-			printf("\nNodo %i (Escritor): No tengo el testigo\n", id_nodo);
 			struct request_msgbuf mensaje;
 			mensaje.mtype = 2;
 			sem_wait(&acceso_mi_peticion);
@@ -537,9 +495,6 @@ void *escritor() {
 
 			for (int i = 0; i < NUM_NODOS; ++i) {
 				if (i != id_nodo) {	//Este if es para que no se envíe una peticion a sí mismo
-					printf(
-							"\nNodo %i (Escritor): Enviando solicitud al nodo: %i\n",
-							id_nodo, i);
 					msgsnd(buzon[i], &mensaje, sizeof(mensaje) - sizeof(long),
 							0);
 				}
@@ -554,7 +509,6 @@ void *escritor() {
 				}
 				sem_post(&acceso_atendidas);
 			}
-			printf("\nNodo %i (Escritor): Testigo recibido\n", id_nodo);
 
 			sem_wait(&acceso_TESTIGO);
 			TESTIGO = 1;
@@ -581,12 +535,12 @@ void *escritor() {
 		 * 	Sección crítica			*
 		 ****************************/
 		log_print(mi_identificador, "entradaSC", tipoproceso);
-		printf("\nNodo %i (Escritor): Estoy en mi Sección crítica con un proceso de tipo %i\n", id_nodo, tipoproceso);
+
 		struct timespec tim, tim2;
 		tim.tv_sec = S_SLEEP;
 		tim.tv_nsec = NS_SLEEP;
 		nanosleep(&tim, &tim2);
-		printf("\nNodo %i (Escritor): He salido de la seccion critica\n", id_nodo);
+
 		log_print(mi_identificador, "salidaSC", tipoproceso);
 		/****************************
 		 * 	Sección crítica			*
@@ -606,10 +560,6 @@ void *escritor() {
 
 		int id_nodo_sig = nodo_Prioritario();
 		if (id_nodo_sig != id_nodo) {
-			printf(
-					"\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
-					id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion,
-					atendidas[id_nodo_sig]);
 			send_token(id_nodo_sig);
 		}
 
@@ -633,35 +583,20 @@ void *gestionReceptor() {
 	while (1) {
 		msgrcv(buzon[id_nodo], &mensaje, sizeof(mensaje) - sizeof(long), 2, 0);
 		origen = mensaje.mtext.origen;
-		printf("ORIGEN: %i\n", origen);
-		id_peticion_origen = mensaje.mtext.id_peticion; //TODO hay que poner que el id_peticion sea > los id recibidos
+		id_peticion_origen = mensaje.mtext.id_peticion;
 		prio_peticion_origen = mensaje.mtext.prioridad;
-		printf("\nNodo %i (Receptor): Peticion recibida del nodo %i\n", id_nodo, origen);
-		//TODO es muy tarde así que no voy a tocar el código no la líe, pero esto np deberia de copmprobar la prioridad?? y si es más prioritario guardarlo
-		//NO el id de peticion que es solo para desempatar en caso de igual prioridad :)
-		//if (id_peticion_origen > peticiones[origen].id_peticion) {
 
-		// Compruebo el id de la petición por si es una que está desactualizada y ya ha sido atendida. Las atendidas lo miro en el testigo.
-		printf("\nNodo %i (Receptor): id_peticion_origen = %i, atendidas_origen %i\n", id_nodo, id_peticion_origen, atendidas[origen]);
 		sem_wait(&acceso_atendidas);
 		if (id_peticion_origen > atendidas[origen]) {
 			sem_wait(&acceso_peticiones);
 			if (prio_peticion_origen < peticiones[origen].prioridad	|| peticiones[origen].id_peticion <= atendidas[origen]) {
 				sem_post(&acceso_atendidas);
-				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
-						id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
 				peticiones[origen].prioridad = prio_peticion_origen;
-				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
-				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
 			} else if(prio_peticion_origen == peticiones[origen].prioridad && id_peticion_origen > peticiones[origen].id_peticion){
 				sem_post(&acceso_atendidas);
-				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
-						id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
 				peticiones[origen].prioridad = prio_peticion_origen;
-				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
-				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
 			}else {
 				sem_post(&acceso_atendidas);
 			}
@@ -671,7 +606,6 @@ void *gestionReceptor() {
 			return NULL;
 		}
 
-		//Esto envia el token sólo cuando el escritor se ha dormido y no ha pasado el testigo TODO
 		sem_wait(&acceso_hilo_escritor);
 		sem_wait(&acceso_TESTIGO);
 		sem_wait(&acceso_leyendo);
@@ -681,7 +615,7 @@ void *gestionReceptor() {
 			sem_post(&acceso_hilo_escritor);
 
 			int nodo_prio = nodo_Prioritario();
-			if (nodo_prio != id_nodo) { //TODO esta linea es innecesaria, pero por si
+			if (nodo_prio != id_nodo) {
 				send_token(nodo_prio);
 			}
 		} else {
@@ -703,47 +637,11 @@ void *gestionReceptor() {
 	}
 }
 
-/**
- * Función que devuelve el nodo más prioritario para la siguiente ejecución
- *
-int nodo_Prioritario() {
-	int nodo_prio = id_nodo;
-	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 0 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[0].id_peticion, peticiones[0].prioridad, atendidas[0]);
-	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
-	for (int i = 0; i < NUM_NODOS; ++i) {
-		//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, entramos en comparacion de peticion y atendidas"ANSI_COLOR_RESET, id_nodo, i);
-		if (peticiones[i].id_peticion > atendidas[i]) {
-			//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion > atendidas"ANSI_COLOR_RESET, id_nodo, i);
-			if (peticiones[i].prioridad == peticiones[nodo_prio].prioridad) {
-				//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, peticion_prioridad = nodo%i.prioridad"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
-				if (peticiones[i].id_peticion < peticiones[nodo_prio].id_peticion) {
-					//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion < nodo%i.id_peticion"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
-					nodo_prio = i;
-				} else if (peticiones[i].id_peticion == peticiones[nodo_prio].id_peticion) {
-					//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_peticion = nodo%i.id_peticion"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
-					if (i <= nodo_prio) { //Es mejor que cause inanicon en un nodo o pasandose el testigo ?? TODO
-						//printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, id_nodo <= nodo%i.id_nodo"ANSI_COLOR_RESET, id_nodo, i, nodo_prio);
-						nodo_prio = i;
-					}
-				}
-			} else if (peticiones[i].prioridad < peticiones[nodo_prio].prioridad) {
-				printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): iter-%i, peticion_prioridad < nodo%i.prioridad"ANSI_COLOR_RESET, i, id_nodo, nodo_prio);
-				nodo_prio = i;
-			}
-		}
-	}
-	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): Se ha decidido el nodo %i como prioritario"ANSI_COLOR_RESET"\n", id_nodo, nodo_prio);
-	return nodo_prio;
-}
-*/
 
 int nodo_Prioritario() {
 
 	int nodo_prio = id_nodo;
 	int factibles[NUM_NODOS];
-
-	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 0 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[0].id_peticion, peticiones[0].prioridad, atendidas[0]);
-	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
 
 	for (int i = 0; i < NUM_NODOS; ++i) {
 		sem_wait(&acceso_atendidas);
@@ -810,9 +708,6 @@ void send_token(int id_destino) {
 		sem_post(&acceso_atendidas);
 	}
 
-	printf("Nodo %i (Token senderator): Enviando el testigo al nodo %i\n",
-			id_nodo, id_destino);
-
 	msgsnd(buzon[id_destino], &testigomsg, sizeof(testigomsg) - sizeof(long),
 			0);
 
@@ -862,7 +757,6 @@ void inicializarNodo(char* log_dir) {
 				perror("msgget");
 				exit(0);
 			} else {
-				printf("Se ha creado el buzón internodo para el nodo %i con el ID %i.\n", i, buzon[i]);
 			}
 		}
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -876,7 +770,6 @@ void inicializarNodo(char* log_dir) {
 			perror("pthread_create");
 			exit(0);
 		} else {
-			printf("Hilo de recepción de peticiones creado correctamente.\n");
 		}
 		//////////////////////////////////////////////////////////////////////////////
 
@@ -888,8 +781,6 @@ void inicializarNodo(char* log_dir) {
 			perror("msgget");
 			exit(0);
 		} else {
-			printf("\nSe ha creado el buzón intranodo con el ID: %i.\n",
-					idBuzonIntranodo);
 		}
 		////////////////////////////////////////////////////////////////////
 
