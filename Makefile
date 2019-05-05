@@ -5,10 +5,7 @@ CC = gcc
 CFLAGS  = -Wall
 
 JC = javac
-JFLAGS = -cp "./lib/*"
-.SUFIXES: .java .class
-.java.class:
-	$(JC) $(JFLAGS) Graficas/$*.java
+JFLAGS = -cp "Graficas/lib/*"
 
 CLASSES= Proceso.java Valores.java Graficas.java LogParser.java
 
@@ -17,11 +14,11 @@ ALL= cfiles jfiles
 all: $(ALL)
 
 cfiles:
-	$(CC) $(CFLAGS) -o nodo nodo.c -lpthread
-	$(CC) $(CFLAGS) -o cliente cliente.c
+	$(CC) $(CFLAGS) -o nodo_d nodo_demostracion.c -lpthread
+	$(CC) $(CFLAGS) -o cliente_p cliente_pagos.c
 
 jfiles:
-	$(CLASSES:.java=.class)
+	$(JC) $(JFLAGS) Graficas/*.java
 
 clean:
 	$(RM) nodo cliente *.class
