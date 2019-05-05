@@ -9,7 +9,7 @@ JFLAGS = -cp "Graficas/lib/*"
 
 CLASSES= Proceso.java Valores.java Graficas.java LogParser.java
 
-ALL= cfiles 
+ALL= cfiles jfiles
 
 all: $(ALL)
 
