@@ -80,17 +80,14 @@ int main(int argc, char *argv[]) {
 	do {
 
 		// SI EN msgrcv EL ARGUMENTO TYPE ES NEGATIVO, COGERA EL PRIMERO CON EL TIPO MAS BAJO (Y MENOR QUE EL VALOR ABSOLUTO DEL ARGUMENTO TYPE DE msgrcv)
-		printf("\nNodo %i (Main): Esperando por mensajes intranodo...\n",
-				id_nodo);
+//		printf("\nNodo %i (Main): Esperando por mensajes intranodo...\n", id_nodo);
 		if (msgrcv(idBuzonIntranodo, &proceso, sizeof(proceso) - sizeof(long),
 				-4, 0) == -1) {
 			printf("\nError en la recepción del mensaje\n");
 			perror("msgrcv");
 			exit(0);
 		}
-//		printf(
-//				"\nNodo %i (Main): Se ha recogido un proceso de la cola de procesos\n",
-//				id_nodo);
+//		printf("\nNodo %i (Main): Se ha recogido un proceso de la cola de procesos\n", id_nodo);
 
 		int tipoproceso = proceso.mtype;
 
@@ -185,7 +182,7 @@ void initLector() {
 		perror("pthread_create");
 		exit(0);
 	} else {
-		printf("Nodo %i (Main): Hilo de gestión de lector iniciado correctamente.\n", id_nodo);
+//		printf("Nodo %i (Main): Hilo de gestión de lector iniciado correctamente.\n", id_nodo);
 	}
 }
 
@@ -324,7 +321,7 @@ void *lector() {
 		//se cierran aqui acceso_lectores y acceso_leyendo
 
 		sem_wait(&acceso_hilo_escritor);
-		if (hilo_escritor == 1 || nodo_Prioritario() != id_nodo) { //TODO Tienen que comprobar tambien en las peticiones recibidas
+		if (hilo_escritor == 1 /*|| nodo_Prioritario() != id_nodo*/) { //TODO Tienen que comprobar tambien en las peticiones recibidas
 			sem_post(&acceso_hilo_escritor);
 			//en este caso hay un escritor (al menos) esperando por tanto debo convertirme en primer lector y competir por la exclusión mutua
 			primerLector();
@@ -463,7 +460,7 @@ void ultimoLector() {
 	printf("\n\tNodo %i (UltimoLector): Soy el ultimo lector\n", id_nodo);
 
 	atendidas[id_nodo] = mi_peticion;
-	peticiones[id_nodo].id_peticion = ++mi_peticion;
+//	peticiones[id_nodo].id_peticion = ++mi_peticion;
 
 	int id_nodo_sig = nodo_Prioritario();
 	printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
@@ -557,7 +554,7 @@ void *escritor() {
 			//dentro = 1;
 		}
 
-		if (procesos_cola.anulaciones > 0) {
+		if (procesos_cola.anulaciones > 0) { //TODO No capto la idea...?¿?¿
 			peticiones[id_nodo].prioridad = 1;
 		} else if (procesos_cola.pagos > 0) {
 			peticiones[id_nodo].prioridad = 2;
@@ -615,7 +612,6 @@ void *gestionReceptor() {
 	int origen, id_peticion_origen, prio_peticion_origen;
 	while (1) {
 		msgrcv(buzon[id_nodo], &mensaje, sizeof(mensaje) - sizeof(long), 2, 0);
-		printf(ANSI_COLOR_RED "\nNodo %i (Receptor): Leyendo = %i, hilo_escritor = %i, TESTIGO = %i"ANSI_COLOR_RESET"\n", id_nodo, leyendo, hilo_escritor, TESTIGO);
 		origen = mensaje.mtext.origen;
 		printf("ORIGEN: %i\n", origen);
 		id_peticion_origen = mensaje.mtext.id_peticion; //TODO hay que poner que el id_peticion sea > los id recibidos
@@ -652,7 +648,6 @@ void *gestionReceptor() {
 			sem_post(&acceso_hilo_escritor);
 
 			int nodo_prio = nodo_Prioritario();
-			printf(ANSI_COLOR_RED "\nNodo %i (Receptor): Nodo prioritario = %i"ANSI_COLOR_RESET"\n", id_nodo, nodo_prio);
 			if (nodo_prio != id_nodo) { //TODO esta linea es innecesaria, pero por si
 				send_token(nodo_prio);
 			}
@@ -673,6 +668,8 @@ void *gestionReceptor() {
  */
 int nodo_Prioritario() {
 	int nodo_prio = id_nodo;
+	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 0 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[0].id_peticion, peticiones[0].prioridad, atendidas[0]);
+	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): NODO 1 - UltimaPeticionEnCursoGuardada: I%i-P%i , UltimaPeticionAtendida: %i"ANSI_COLOR_RESET"\n", id_nodo, peticiones[1].id_peticion, peticiones[1].prioridad, atendidas[1]);
 	for (int i = 0; i < NUM_NODOS; ++i) {
 		if (peticiones[i].id_peticion > atendidas[i]) {
 			if (peticiones[i].prioridad == peticiones[nodo_prio].prioridad) {
@@ -689,6 +686,7 @@ int nodo_Prioritario() {
 			}
 		}
 	}
+	printf(ANSI_COLOR_RED "\nNodo %i (nodo_Prioritario): Se ha decidido el nodo %i como prioritario"ANSI_COLOR_RESET"\n", id_nodo, nodo_prio);
 	return nodo_prio;
 }
 
@@ -750,9 +748,7 @@ void inicializarNodo(char* log_dir) {
 				perror("msgget");
 				exit(0);
 			} else {
-				printf(
-						"Se ha creado el buzón internodo para el nodo %i con el ID %i.\n",
-						i, buzon[i]);
+				printf("Se ha creado el buzón internodo para el nodo %i con el ID %i.\n", i, buzon[i]);
 			}
 		}
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
