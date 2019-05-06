@@ -520,7 +520,7 @@ void *escritor() {
 
 
 		sem_wait(&acceso_peticiones);
-		if (procesos_cola.anulaciones > 0) { //TODO No capto la idea...?¿?¿
+		if (procesos_cola.anulaciones > 0) {
 			peticiones[id_nodo].prioridad = 1;
 		} else if (procesos_cola.pagos > 0) {
 			peticiones[id_nodo].prioridad = 2;
@@ -726,7 +726,7 @@ void inicializarNodo(char* log_dir) {
 	sprintf(aux, "%d", id_nodo);
 	strcat(stlog, aux);
 	strcat(stlog, ".txt");
-	//Ahora log será: "logNodoXX.txt TODO: que tal añadirle el dir pasado por parametros?
+	//Ahora log será: "logNodoXX.txt
 
 	sem_init(&papel, 0, 1);
 		sem_init(&paso_lectores, 0, 0);
