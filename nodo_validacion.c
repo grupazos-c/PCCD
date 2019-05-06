@@ -397,10 +397,10 @@ void ultimoLector() {
 	sem_post(&acceso_atendidas);
 
 	int id_nodo_sig = nodo_Prioritario();
-	printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
+	//printf("\n\tNodo %i (UltimoLector): El nodo mas prioritario a mi salida es: %i\n", id_nodo, id_nodo_sig);
 	if (id_nodo_sig != id_nodo) {
-		printf("\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
-				id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion, atendidas[id_nodo_sig]);
+	//	printf("\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
+			//	id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion, atendidas[id_nodo_sig]);
 		send_token(id_nodo_sig);
 	}
 
@@ -527,10 +527,10 @@ void *escritor() {
 
 		int id_nodo_sig = nodo_Prioritario();
 		if (id_nodo_sig != id_nodo) {
-			printf(
+			/*printf(
 					"\nNodo %i: Enviando el testigo al nodo %i mediante el gestor intranodo dado que la peticion del nodo es %i y la ultima atendida es %i\n",
 					id_nodo, id_nodo_sig, peticiones[id_nodo_sig].id_peticion,
-					atendidas[id_nodo_sig]);
+					atendidas[id_nodo_sig]);*/
 			send_token(id_nodo_sig);
 		}
 
@@ -561,26 +561,26 @@ void *gestionReceptor() {
 		//if (id_peticion_origen > peticiones[origen].id_peticion) {
 
 		// Compruebo el id de la petición por si es una que está desactualizada y ya ha sido atendida. Las atendidas lo miro en el testigo.
-		printf("\nNodo %i (Receptor): id_peticion_origen = %i, atendidas_origen %i\n", id_nodo, id_peticion_origen, atendidas[origen]);
+		//printf("\nNodo %i (Receptor): id_peticion_origen = %i, atendidas_origen %i\n", id_nodo, id_peticion_origen, atendidas[origen]);
 		sem_wait(&acceso_atendidas);
 		if (id_peticion_origen > atendidas[origen]) {
 			sem_wait(&acceso_peticiones);
 			if (prio_peticion_origen < peticiones[origen].prioridad	|| peticiones[origen].id_peticion <= atendidas[origen]) {
 				sem_post(&acceso_atendidas);
-				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
-						id_nodo, origen, id_peticion_origen);
+				//printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
+						//id_nodo, origen, id_peticion_origen);
 				peticiones[origen].id_peticion = id_peticion_origen;
 				peticiones[origen].prioridad = prio_peticion_origen;
-				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
-				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
+				//printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
+				//printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
 			} else if(prio_peticion_origen == peticiones[origen].prioridad && id_peticion_origen > peticiones[origen].id_peticion){
 				sem_post(&acceso_atendidas);
-				printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
-						id_nodo, origen, id_peticion_origen);
+				/*printf("\nNodo %i (Receptor): Peticion actualizada para nodo %i al valor de peticion %i\n",
+						id_nodo, origen, id_peticion_origen);*/
 				peticiones[origen].id_peticion = id_peticion_origen;
 				peticiones[origen].prioridad = prio_peticion_origen;
-				printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
-				printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
+				//printf("ID PETICION ORIGEN: %i\n", id_peticion_origen);
+				//printf("PRIORIDAD ORIGEN: %i\n", prio_peticion_origen);
 			}else {
 				sem_post(&acceso_atendidas);
 			}
