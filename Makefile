@@ -14,9 +14,8 @@ ALL= cfiles jfiles
 all: $(ALL)
 
 cfiles:
-	$(CC) $(CFLAGS) -o nodo_d nodo_demostracion.c -lpthread
-	$(CC) $(CFLAGS) -o cliente_p cliente_pagos.c
-	$(CC) $(CFLAGS) -o cliente_p_p cliente_pagos_periodo.c
+	$(CC) $(CFLAGS) -o nodo_v nodo_validacion.c -lpthread
+	$(CC) $(CFLAGS) -o cliente_v cliente_pruebas_validacion.c
 
 jfiles:
 	$(JC) $(JFLAGS) Graficas/*.java
