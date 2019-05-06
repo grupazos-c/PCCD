@@ -7,10 +7,15 @@
  int num_pagos;
  int buzones[NUM_NODOS];
  struct MensajeIntranodo pagos;
+ struct MensajeIntranodo consultas;
+ struct MensajeIntranodo anulaciones;
+ struct MensajeIntranodo prereservas;
 
  int clave;
 
  void enviar_pagos();
+ void consultas_un_nodo();
+ void prioridades();
  int input();
 int main(int argc, char *argv[]) {
 
@@ -35,7 +40,8 @@ int main(int argc, char *argv[]) {
     printf("\n");
     printf("\n");
    printf("1) Ejecutar la prueba 1 (Mandar x procesos de pagos)\n");
-   printf("2) Ejecutar la prueba 2 ()\n");
+   printf("2) Ejecutar la prueba 2 (Consultas en un nodo, llegan pagos a otro)\n");
+   printf("3) Ejecutar la prueba 3 (Prioridades)\n");
    printf("\n0) Pulsa 0 para salir\n\n");
    choice = input();
 
@@ -45,7 +51,11 @@ int main(int argc, char *argv[]) {
          break;
      }
      case 2: {
-         printf("Enter side of square:\n");
+         consultas_un_nodo();
+         break;
+     }
+     case 3: {
+         prioridades();
          break;
      }
      case 0: {
@@ -77,4 +87,39 @@ void enviar_pagos(){
 		}
 	}
   return;
+}
+
+void consultas_un_nodo(){
+  pagos.mtype = PAGO;
+  consultas.mtype = CONSULTA;
+
+
+  //envia 10 consultas al nodo 0
+  for (int i=0; i<10; i++){
+			msgsnd(buzones[0], &consultas, sizeof(consultas) - sizeof(long), 0);
+	}
+  sleep(1);
+  //envia 1 pago al nodo 1
+  msgsnd(buzones[1], &pagos, sizeof(pagos) - sizeof(long), 0);
+  sleep(1);
+  //envia consultas al nodo 0
+  for (int i=0; i<10; i++){
+			msgsnd(buzones[0], &consultas, sizeof(consultas) - sizeof(long), 0);
+	}
+}
+
+void prioridades(){
+  pagos.mtype = PAGO;
+  consultas.mtype = CONSULTA;
+  anulaciones.mtype = ANULACION;
+  prereservas.mtype = PRERESERVA;
+  msgsnd(buzones[0], &pagos, sizeof(pagos) - sizeof(long), 0);
+  sleep(1);
+  msgsnd(buzones[1], &pagos, sizeof(consultas) - sizeof(long), 0);
+  msgsnd(buzones[1], &consultas, sizeof(consultas) - sizeof(long), 0);
+  msgsnd(buzones[1], &anulaciones, sizeof(consultas) - sizeof(long), 0);
+  msgsnd(buzones[2], &prereservas, sizeof(consultas) - sizeof(long), 0);
+  msgsnd(buzones[2], &pagos, sizeof(consultas) - sizeof(long), 0);
+  msgsnd(buzones[2], &anulaciones, sizeof(consultas) - sizeof(long), 0);
+
 }
