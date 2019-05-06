@@ -21,7 +21,7 @@
 
 #define TIPO_PETICION_TESTIGO 1
 #define TIPO_ENTREGA_TESTIGO 2
-#define NUM_NODOS 256
+#define NUM_NODOS 32
 
 #define S_SLEEP 0
 #define NS_SLEEP 100000 //1000000000ns = 1s

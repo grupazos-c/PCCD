@@ -13,4 +13,4 @@ done
 
 sleep 2
 
-./cliente_p 1000
+./cliente_p_p 50 100000
